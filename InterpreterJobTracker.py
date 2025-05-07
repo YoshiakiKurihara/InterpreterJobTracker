@@ -58,7 +58,7 @@ class InterpreterJobTracker:
         load_dotenv()
         return Config(
             LOGIN_URL=os.getenv("LOGIN_URL"),
-            DEBUG_MODE=bool(os.getenv("DEBUG_MODE")),
+            DEBUG_MODE=os.getenv("DEBUG_MODE", "true").lower() == "true",  # 修正
             STUB_URL=os.getenv("STUB_URL"),
             EMAIL=os.getenv("EMAIL"),
             IDENTIFIER=os.getenv("IDENTIFIER"),
@@ -226,6 +226,8 @@ class InterpreterJobTracker:
     # --- メインループ ---
     def run(self) -> None:
         reload_attempts = 0
+        
+        os.makedirs("./htmlcopy", exist_ok=True)  # ←追加
 
         while reload_attempts < self.MAX_RELOAD_ATTEMPTS:
             if not self._check_window_title('My jobs summary | TIS Online'):
