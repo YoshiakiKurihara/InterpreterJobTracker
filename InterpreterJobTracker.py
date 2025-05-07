@@ -111,8 +111,6 @@ class InterpreterJobTracker:
 
     def _parse_distance(self, distance: str) -> Optional[float]:
         
-        print(f"Unsupported type: {type(distance)} with value: {distance}")
-        
         if isinstance(distance, str):
             if 'nan' in distance.lower():
                 return 0.0  # 'nan' は 0km とみなす
