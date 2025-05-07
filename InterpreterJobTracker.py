@@ -11,6 +11,10 @@ from dotenv import load_dotenv
 import os
 from dataclasses import dataclass
 from typing import Optional
+import math
+import numpy as np
+from typing import Optional
+from colorama import Fore, Style, init
 
 @dataclass
 class Config:
@@ -29,6 +33,11 @@ class InterpreterJobTracker:
         self.AFTER_HOUR = 14
         self.MAX_DISTANCE = 20
         self.MAX_RELOAD_ATTEMPTS = 8640
+        
+        init(autoreset=True)
+        
+        script_path = os.path.abspath(__file__)
+        print(f"スクリプトのパス: {script_path}")
 
     def _load_config(self) -> Config:
         load_dotenv()
@@ -50,7 +59,7 @@ class InterpreterJobTracker:
         sleep(0.5)
         
         if not self._check_window_title('Login | TIS Online'):
-            sys.exit("ログインページにアクセスできませんでした")
+            sys.exit(Fore.Red + "ログインページにアクセスできませんでした")
 
         try:
             self.driver.find_element(By.NAME, "EmailAddresss").send_keys(self.config.EMAIL)
@@ -59,10 +68,10 @@ class InterpreterJobTracker:
             self.driver.find_element(By.CLASS_NAME, "primary-button").click()
             sleep(5)
         except NoSuchElementException:
-            sys.exit("ログイン要素が見つかりませんでした")
+            sys.exit(Fore.RED + "ログイン要素が見つかりませんでした")
 
         if not self._check_window_title('My jobs summary | TIS Online'):
-            sys.exit("ログイン後のページ遷移に失敗しました")
+            sys.exit(Fore.RED + "ログイン後のページ遷移に失敗しました")
 
     def _check_window_title(self, expected_title: str) -> bool:
         return self.driver.title == expected_title
@@ -78,7 +87,7 @@ class InterpreterJobTracker:
         for i in range(jobs_available):
             job_time = df['Date/Time'][i]
             if not self._is_valid_job_date(str(job_time)):
-                print(f"{datetime.now()} - 無効な日付: {job_time}")
+                print(f"{datetime.now()} - ジョブ除外日: {job_time}")
                 self._hide_job()
                 continue
 
@@ -101,15 +110,22 @@ class InterpreterJobTracker:
         return 0.0
 
     def _parse_distance(self, distance: str) -> Optional[float]:
+        
+        print(f"Unsupported type: {type(distance)} with value: {distance}")
+        
         if isinstance(distance, str):
-            if 'nan' in distance:
-                return None
+            if 'nan' in distance.lower():
+                return 0.0  # 'nan' は 0km とみなす
             elif 'Km' in distance or 'km' in distance:
                 value = distance.replace('Km', '').replace('km', '').replace(' ', '')
                 return float(value) if self._is_convertible_to_float(value) else None
-        elif isinstance(distance, float):
-            return distance
+        elif isinstance(distance, (float, np.float64)):
+            if math.isnan(distance):  # ここで nan 判定
+                return 0.0
+            return float(distance)
+        
         return None
+
 
     def _is_valid_job_date(self, date_time: str) -> bool:
         return all(no_date not in date_time for no_date in self.NO_JOB_DATES)
@@ -122,9 +138,11 @@ class InterpreterJobTracker:
             return False
 
     def _should_accept_job(self, timetojob: float, distance: Optional[float]) -> bool:
-        if distance is None and timetojob >= self.AFTER_HOUR:
+        if distance is None:
+            return False
+        if distance == 0.0 and timetojob >= self.AFTER_HOUR:
             return True
-        if distance is not None and 0 <= distance <= self.MAX_DISTANCE and timetojob >= self.AFTER_HOUR:
+        if distance > 0.0 and distance <= self.MAX_DISTANCE and timetojob >= self.AFTER_HOUR:
             return True
         return False
 
@@ -134,9 +152,9 @@ class InterpreterJobTracker:
                 self.driver.find_element(By.XPATH, '//*[@id="main"]/div[4]/div[2]/div[2]/div[3]/table/tbody/tr/td[8]/div/a[2]').click()
                 sleep(0.5)
                 self.driver.find_element(By.XPATH, '//*[@id="main"]/div[4]/div[2]/div[2]/div[3]/table/tbody/tr[2]/td/div/div[4]/div[3]/a[1]').click()
-            print(f"{datetime.now()} - ジョブを受諾しました")
+            print(Fore.CYAN + f"{datetime.now()} - ジョブを受諾しました")
         except NoSuchElementException:
-            print(f"{datetime.now()} - ジョブの受諾に失敗しました")
+            print(Fore.Red + f"{datetime.now()} - ジョブの受諾に失敗しました")
 
     def _hide_job(self) -> None:
         try:
@@ -144,9 +162,9 @@ class InterpreterJobTracker:
                 self.driver.find_element(By.XPATH, '//*[@id="main"]/div[4]/div[2]/div[2]/div[3]/table/tbody/tr/td[8]/div/a[3]').click()
                 sleep(0.5)
                 self.driver.find_element(By.XPATH, '//*[@id="main"]/div[4]/div[2]/div[2]/div[3]/table/tbody/tr[2]/td/div/div/a[1]').click()
-            print(f"{datetime.now()} - ジョブを非表示にしました")
+            print(Fore.YELLOW + f"{datetime.now()} - ジョブを非表示にしました")
         except NoSuchElementException:
-            print(f"{datetime.now()} - ジョブの非表示に失敗しました")
+            print(Fore.Red + f"{datetime.now()} - ジョブの非表示に失敗しました")
 
     def run(self) -> None:
         reload_attempts = 0
@@ -158,7 +176,7 @@ class InterpreterJobTracker:
             jobs_available = self.get_job_count()
 
             if jobs_available > 0:
-                print(f"{datetime.now()} - {jobs_available}件のジョブが利用可能です")
+                print(Fore.MAGENTA + f"{datetime.now()} - {jobs_available}件のジョブが受諾可能です")
                 
                 html = self.driver.page_source
                 with open(f"./htmlcopy/page_copy{str(datetime.now()).replace('-','').replace(':','').replace(' ','').replace('.','')}.html", "w", encoding="utf-8") as file:
