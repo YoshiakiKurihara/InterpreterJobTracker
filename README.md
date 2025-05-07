@@ -1,6 +1,8 @@
 /////Japanese Version<br/>
-このPythonプログラムは、翻訳業務委託のWebサイトをリアルタイムで監視するシステムです。
-Email、ID、パスワードを入力後、サイト上に新しい翻訳業務が掲載されたタイミングで自動的に検出し、以下のパラメータに基づいてフィルタリングを行います：
+このPythonプログラムは、翻訳業務委託サイトをリアルタイムで監視するシステムです。
+プログラムが動作するPCには、BIOS設定で自動起動を有効にし、Windowsのタスクスケジューラを使用して、プログラムの開始・終了時刻およびPCの自動シャットダウンを設定しています。
+プログラムは起動時、終了時、および1時間ごとにメールを送信し、外出先からでも正常に動作していることを確認できます。
+メールアドレス、ID、パスワードを入力後、サイト上に新しい翻訳案件が掲載されたタイミングで自動的に検出し、以下の条件に基づいてフィルタリングを行います。
 
 1. 登録住所からの距離
 2. 希望する業務開始時間
@@ -19,8 +21,10 @@ Email、ID、パスワードを入力後、サイト上に新しい翻訳業務�
 <hr/>
 <br/>
 /////English Version<br/>
-This Python program serves as a real-time monitoring system for a translation subcontracting job website.
-After entering email, user ID, and password, the script continuously monitors the website for newly posted translation jobs. When a new job appears, the program automatically filters listings based on customizable parameters such as:
+This Python program is a real-time monitoring system for freelance translation job postings on a specific website.
+The PC running the program is configured to start automatically via BIOS settings, and Windows Task Scheduler is used to define the program’s start and end times, as well as to perform automatic system shutdown.
+The program sends email notifications at startup, shutdown, and every hour, allowing the user to remotely confirm that it is operating correctly.
+After entering the email address, user ID, and password, the program automatically detects newly posted translation jobs on the website and filters them based on the following criteria.
 
 1. Distance from your registered home address
 2. Desired job start time
