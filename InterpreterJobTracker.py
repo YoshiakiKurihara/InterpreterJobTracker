@@ -79,24 +79,36 @@ class InterpreterJobTracker:
         return webdriver.Chrome(options=options)
 
     # --- メール送信 ---
-    def send_email(self, mode: str):
+    def send_email(self, mode: str, content: Optional[str] = None):
         msg = EmailMessage()
         msg['From'] = self.config.EMAIL_ADDRESS_FROM
         msg['To'] = self.config.EMAIL_ADDRESS_TO
 
+        # プログラムスタート通知
         if mode == "START":
             msg['Subject'] = "Interpreter Job Tracker App : Start"
             msg.set_content("Start")
+        #　1時間ごとのモニタリング通知
         elif mode == "MONITORING":
             msg['Subject'] = "Interpreter Job Tracker App : Monitoring"
             msg.set_content("Monitoring")
+        #　シャットダウン通知
         elif mode == "SHUTDOWN":
             msg['Subject'] = "Interpreter Job Tracker : Shutdown"
             msg.set_content("Shutdown")
+        #　ACCEPT通知
+        elif mode == "ACCEPT":
+            msg['Subject'] = "Interpreter Job Tracker : Job Accepted"
+            msg.set_content(content if content else "A job has been accepted.")
+        #　HIDE通知
+        elif mode == "HIDE":
+            msg['Subject'] = "Interpreter Job Tracker : Job Hidden"
+            msg.set_content(content if content else "A job has been hidden.")
         else:
             msg['Subject'] = "Interpreter Job Tracker : Unknown"
             msg.set_content("Unknown Status")
 
+        # 送信
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(self.config.EMAIL_ADDRESS_FROM, self.config.EMAIL_PASSWORD)
             smtp.send_message(msg)
@@ -140,22 +152,29 @@ class InterpreterJobTracker:
     # --- ジョブの処理 ---
     def process_jobs(self, df: pd.DataFrame, jobs_available: int) -> None:
         for i in range(jobs_available):
+            # 表示生データ（日時データ）
             job_time = df['Date/Time'][i]
+
+            print(f"{datetime.now()} - ジョブ詳細: 日時 {job_time}, 距離 {df['Distance'][i]}")
+
             if not self._is_valid_job_date(str(job_time)):
                 print(f"{datetime.now()} - ジョブ除外日: {job_time}")
                 self._hide_job()
+                self.send_email("HIDE", f"{datetime.now()} - ジョブ除外日: {job_time}, 距離 {df['Distance'][i]}")
                 continue
-
+            
             timetojob = self._parse_time_to_job(df['Time to job'][i])
             distance = self._parse_distance(df['Distance'][i])
 
             if self._should_accept_job(timetojob, distance):
                 self._accept_job()
                 print(f"{datetime.now()} - ジョブを受諾: 時間 {timetojob}時間, 距離 {distance}km")
+                self.send_email("ACCEPT", f"{datetime.now()} - ジョブを受諾: {job_time}, 距離 {distance}km")
                 break
             else:
                 self._hide_job()
                 print(f"{datetime.now()} - ジョブを非表示: 時間 {timetojob}時間, 距離 {distance}km")
+                self.send_email("HIDE", f"{datetime.now()} - ジョブを非表示: {job_time}, 距離 {distance}km")
 
     # --- 時間の解析 ---
     def _parse_time_to_job(self, timetojob: str) -> float:
